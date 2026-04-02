@@ -29,51 +29,56 @@ Some prompts to answer:
 
 You can include a simple diagram or bullet list if helpful.
 
-- My design will calculate a score between 0 and 1 for each song, where 0 indicates that the song does not align at all with the user's tastes (ie. target_energy, favorite_mood, etc), and where 1 is a perfect match. I plan to calculate the score using the following formula: 
+- My design will calculate a numeric score for each song based on how closely its audio features match the user's targets, then add flat bonuses for categorical matches. A score of 1.0 or higher indicates a really good match. I plan to calculate the score using the following formula: 
 ```
-total_score = (w1 × proximity(energy)
-             + w2 × proximity(acousticness)
-             + w3 × proximity(valence)
-             + w4 × proximity(danceability)
-             + w5 × proximity(tempo_normalized)
-             + w6 × mood_match          ← 1.0 if match, 0.0 if not
-             ) / (w1 + w2 + w3 + w4 + w5 + w6)
+numeric_score = (w1 × proximity(energy)
+              + w2 × proximity(acousticness)
+              + w3 × proximity(valence)
+              + w4 × proximity(danceability)
+              + w5 × proximity(tempo_normalized)
+              ) / (w1 + w2 + w3 + w4 + w5)
+
+total_score = numeric_score
+            + 0.15  (if genre matches favorite_genre)
+            + 0.15  (if mood  matches favorite_mood)
+
+# genre and mood are strings — they can't be "close", only equal or not,
+# so they are treated as flat bonuses rather than weighted numeric features.
 
 WEIGHTS = {
-    "energy":        0.20,  # strongest discriminator in this dataset
-    "acousticness":  0.20,  # captures organic vs electronic texture
-    "valence":       0.15,  # emotional tone
-    "danceability":  0.15,  # rhythmic feel and movement
+    "energy":        0.25,  # strongest discriminator in this dataset
+    "acousticness":  0.25,  # captures organic vs electronic texture
+    "valence":       0.20,  # emotional tone
+    "danceability":  0.20,  # rhythmic feel and movement
     "tempo":         0.10,  # pace (normalized: tempo_bpm / 200)
-    "mood":          0.20,  # categorical bonus
 }
 ```
 - Each song stores identifying information (id, title, artist), categorical descriptors (genre, mood), and five numeric audio features (energy, tempo_bpm, valence, danceability, acousticness) that together capture what a song sounds like and feels like.
-- Songs will then be ordered based on their score, with songs with scores closer to 1 to be the first to be recommended to the user 
+- Songs will then be ordered based on their total score. Scores at or above 1.0 indicate a strong match; scores below 1.0 mean the song aligns partially.
 - The UserProfile stores four pieces of information about a user's music taste. 
   - It records the user's favorite_genre and favorite_mood as strings, which capture categorical preferences like preferring "lofi" or "jazz" and moods like "chill" or "focused." 
   - It also stores target_energy as a float between 0 and 1, representing the energy level the user gravitates toward (closer to 0 for mellow listening and closer to 1 for high-intensity music). 
   - Finally, likes_acoustic is a boolean that indicates whether the user prefers acoustic, organic-sounding songs over electronic or produced ones.
-- **Potential Biases:** this formula strongly prioritizes energy, mood, and accousticness at the expense of tempo, valence, and danceability. However, this seems like a reasonable decision given that energy and mood may be "good enough" proxies for tempo and danceability in particular. Also, we do not incorporate genre into the calculation because there is not an easy way to translate this into a "score" nor to objectively compare one genre to another
+- **Potential Biases:** the numeric portion prioritizes energy and acousticness. The categorical bonuses treat genre and mood as equally important to each other but less influential than a perfect numeric match across all features.
 
 Here is my planned flow chart: 
 ```
 flowchart TD
-    A([Input: user_prefs\nfavorite_mood · target_energy\ntarget_acousticness · target_valence\ntarget_danceability · target_tempo_bpm]) --> B[load_songs from data/songs.csv]
+    A([Input: user_prefs\nfavorite_genre · favorite_mood · target_energy\ntarget_acousticness · target_valence\ntarget_danceability · target_tempo_bpm]) --> B[load_songs from data/songs.csv]
     B --> C
 
     subgraph C[recommend_songs loop — for each song]
-        D[proximity energy\nw1 = 0.30]
-        E[proximity acousticness\nw2 = 0.20]
-        F[proximity valence\nw3 = 0.15]
-        G[proximity danceability\nw4 = 0.15]
+        D[proximity energy\nw1 = 0.25]
+        E[proximity acousticness\nw2 = 0.25]
+        F[proximity valence\nw3 = 0.20]
+        G[proximity danceability\nw4 = 0.20]
         H[proximity tempo normalized\nw5 = 0.10]
-        I[mood match 1.0 or 0.0\nw6 = 0.10]
-        D & E & F & G & H & I --> J[weighted sum ÷ total weight\n= final score 0.0–1.0]
-        J --> K[store song · score · explanation]
+        D & E & F & G & H --> J[weighted sum ÷ total weight\n= numeric_score 0.0–1.0]
+        J --> J2[+ 0.15 if genre matches\n+ 0.15 if mood matches]
+        J2 --> K[store song · total_score · explanation]
     end
 
-    C --> L[sort all songs by score descending]
+    C --> L[sort all songs by total_score descending]
     L --> M[slice top K]
     M --> N([Output: title · score · explanation])
 
@@ -116,6 +121,8 @@ pytest
 You can add more tests in `tests/test_recommender.py`.
 
 ---
+
+![alt text](image-1.png)
 
 ## Experiments You Tried
 
