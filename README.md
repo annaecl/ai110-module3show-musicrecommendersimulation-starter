@@ -34,16 +34,18 @@ You can include a simple diagram or bullet list if helpful.
 total_score = (w1 × proximity(energy)
              + w2 × proximity(acousticness)
              + w3 × proximity(valence)
-             + w4 × proximity(tempo_normalized)
-             + w5 × mood_match          ← 1.0 if match, 0.0 if not
-             ) / (w1 + w2 + w3 + w4 + w5)
+             + w4 × proximity(danceability)
+             + w5 × proximity(tempo_normalized)
+             + w6 × mood_match          ← 1.0 if match, 0.0 if not
+             ) / (w1 + w2 + w3 + w4 + w5 + w6)
 
 WEIGHTS = {
-    "energy":       0.35,   # strongest discriminator in this dataset
-    "acousticness": 0.25,   # captures organic vs electronic texture
-    "valence":      0.20,   # emotional tone
-    "tempo":        0.10,   # rhythm feel (normalized: tempo_bpm / 200)
-    "mood":         0.10,   # categorical bonus
+    "energy":        0.20,  # strongest discriminator in this dataset
+    "acousticness":  0.20,  # captures organic vs electronic texture
+    "valence":       0.15,  # emotional tone
+    "danceability":  0.15,  # rhythmic feel and movement
+    "tempo":         0.10,  # pace (normalized: tempo_bpm / 200)
+    "mood":          0.20,  # categorical bonus
 }
 ```
 - Each song stores identifying information (id, title, artist), categorical descriptors (genre, mood), and five numeric audio features (energy, tempo_bpm, valence, danceability, acousticness) that together capture what a song sounds like and feels like.
@@ -52,6 +54,31 @@ WEIGHTS = {
   - It records the user's favorite_genre and favorite_mood as strings, which capture categorical preferences like preferring "lofi" or "jazz" and moods like "chill" or "focused." 
   - It also stores target_energy as a float between 0 and 1, representing the energy level the user gravitates toward (closer to 0 for mellow listening and closer to 1 for high-intensity music). 
   - Finally, likes_acoustic is a boolean that indicates whether the user prefers acoustic, organic-sounding songs over electronic or produced ones.
+- **Potential Biases:** this formula strongly prioritizes energy, mood, and accousticness at the expense of tempo, valence, and danceability. However, this seems like a reasonable decision given that energy and mood may be "good enough" proxies for tempo and danceability in particular. Also, we do not incorporate genre into the calculation because there is not an easy way to translate this into a "score" nor to objectively compare one genre to another
+
+Here is my planned flow chart: 
+```
+flowchart TD
+    A([Input: user_prefs\nfavorite_mood · target_energy\ntarget_acousticness · target_valence\ntarget_danceability · target_tempo_bpm]) --> B[load_songs from data/songs.csv]
+    B --> C
+
+    subgraph C[recommend_songs loop — for each song]
+        D[proximity energy\nw1 = 0.30]
+        E[proximity acousticness\nw2 = 0.20]
+        F[proximity valence\nw3 = 0.15]
+        G[proximity danceability\nw4 = 0.15]
+        H[proximity tempo normalized\nw5 = 0.10]
+        I[mood match 1.0 or 0.0\nw6 = 0.10]
+        D & E & F & G & H & I --> J[weighted sum ÷ total weight\n= final score 0.0–1.0]
+        J --> K[store song · score · explanation]
+    end
+
+    C --> L[sort all songs by score descending]
+    L --> M[slice top K]
+    M --> N([Output: title · score · explanation])
+
+```
+![alt text](image.png)
 
 ---
 
