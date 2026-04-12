@@ -183,8 +183,4 @@ Prompts:
 
 **Response**
 
-Building this taught me that even a simple scoring formula has a lot of hidden design decisions. Choosing weights, deciding how to handle categorical features, and figuring out what to do with edge cases all required judgment calls that were not obvious up front.
-
-The most interesting discovery was how much the genre and mood bonuses dominated the output. I expected numeric proximity to carry most of the weight, but a +0.15 bonus is actually huge relative to the numeric scores — it can push an otherwise mediocre song to the top.
-
-I now think about music apps like Spotify differently. When a recommendation feels slightly off — right genre but wrong energy — it is probably because the system is over-indexing on one feature the way this one over-indexes on genre and mood. Real systems must tune these trade-offs very carefully.
+Implementing the recommender system was relatively simple, but its effectiveness is based on subjective decisions (such as what matters more, energy or genre) that may lead to counterintuitive recommendations. This explains why when apps like Spotify make suggestions, they reflect strategic choices that may or may not result in a positive user experience. If I had more time, I would like to hammer out some of the kinks in the system (ex: the over-emphasis on genre and mood) and refine how the recommendations are visually presented to the user. I would also add a larger collection of songs. 
